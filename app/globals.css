@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+/* Optional: Medium-like typography */
+.prose, .font-serif, article { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; }
+
+
+html, body { height: 100%; }
+body { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; }
+
+.container { @apply mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl; }
+.section { @apply py-6 sm:py-8; }
+.card { @apply rounded-xl border border-border bg-white shadow-card; }
+.h2 { @apply text-xl sm:text-2xl font-semibold; }
+.p { @apply text-sm sm:text-base text-muted; }
+.btn { @apply inline-flex items-center justify-center rounded-lg border border-border bg-white px-3 py-2 text-sm hover:bg-gray-50 active:bg-gray-100; }
+.btn-primary { @apply bg-ink text-white border-ink hover:bg-black; }
+.label { @apply text-xs text-muted; }
+.slider { @apply w-40; }
+
+canvas { image-rendering: pixelated; }
