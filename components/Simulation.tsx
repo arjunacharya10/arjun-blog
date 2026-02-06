@@ -89,7 +89,7 @@ class World {
   Cls = new Uint8Array(N); // class
   Occ = new Uint8Array(N); // occupied (1) or empty (0)
   Move = new Int8Array(N); // last move (+1/-1)
-  StreakBad = new Uint8Array(N); // consecutive bad moves
+  StreakNegDelta = new Uint8Array(N); // consecutive ticks with delta < 0
   constructor(kind: "Good" | "Mixed") {
     this.kind = kind;
   }
@@ -115,7 +115,7 @@ class Engine {
       this.good.Cls[i] = randClass();
       this.good.T[i] = 10;
       this.good.Move[i] = +1;
-      this.good.StreakBad[i] = 0;
+      this.good.StreakNegDelta[i] = 0;
     }
     // Mixed: [-10,10]
     for (let i = 0; i < N; i++) {
@@ -123,7 +123,7 @@ class Engine {
       this.mixed.Cls[i] = randClass();
       this.mixed.T[i] = Math.random() * 20 - 10;
       this.mixed.Move[i] = +1;
-      this.mixed.StreakBad[i] = 0;
+      this.mixed.StreakNegDelta[i] = 0;
     }
     this.tick = 0;
     this.migrated = 0;
@@ -139,7 +139,7 @@ class Engine {
       }
   }
 
-  neighborImpacts(w: World) {
+  neighborImpacts(w: World): Float32Array {
     const { T, Cls, Move, Occ } = w;
     const delta = new Float32Array(N);
     for (let i = 0; i < N; i++)
@@ -162,6 +162,7 @@ class Engine {
       if (Occ[i]) {
         T[i] = Math.min(10, T[i] + delta[i]);
       }
+    return delta;
   }
 
   powerfulSelfDrift(w: World) {
@@ -173,13 +174,13 @@ class Engine {
       }
   }
 
-  updateHistoryAndQueue(w: World) {
-    const { Move, StreakBad, Occ } = w;
+  updateHistoryAndQueue(w: World, delta: Float32Array) {
+    const { StreakNegDelta, Occ } = w;
     for (let i = 0; i < N; i++)
       if (Occ[i]) {
-        if (Move[i] < 0) StreakBad[i] = Math.min(255, StreakBad[i] + 1);
-        else StreakBad[i] = 0;
-        if (w === this.mixed && StreakBad[i] >= 4) this.migQueue.push(i);
+        if (delta[i] < 0) StreakNegDelta[i] = Math.min(255, StreakNegDelta[i] + 1);
+        else StreakNegDelta[i] = 0;
+        if (w === this.mixed && StreakNegDelta[i] >= 4) this.migQueue.push(i);
       }
   }
 
@@ -196,12 +197,12 @@ class Engine {
       this.good.Cls[idxGood] = this.mixed.Cls[idxMixed];
       this.good.T[idxGood] = this.mixed.T[idxMixed];
       this.good.Move[idxGood] = this.mixed.Move[idxMixed];
-      this.good.StreakBad[idxGood] = this.mixed.StreakBad[idxMixed];
+      this.good.StreakNegDelta[idxGood] = this.mixed.StreakNegDelta[idxMixed];
       // leave void in Mixed
       this.mixed.Occ[idxMixed] = 0;
       this.mixed.T[idxMixed] = 0;
       this.mixed.Move[idxMixed] = +1;
-      this.mixed.StreakBad[idxMixed] = 0;
+      this.mixed.StreakNegDelta[idxMixed] = 0;
       this.migrated++;
       processed++;
     }
@@ -232,9 +233,9 @@ class Engine {
     tmp = w.Move[a];
     w.Move[a] = w.Move[b];
     w.Move[b] = tmp;
-    tmp = w.StreakBad[a];
-    w.StreakBad[a] = w.StreakBad[b];
-    w.StreakBad[b] = tmp;
+    tmp = w.StreakNegDelta[a];
+    w.StreakNegDelta[a] = w.StreakNegDelta[b];
+    w.StreakNegDelta[b] = tmp;
   }
   shuffleWorld(w: World) {
     const idx = this.fisherYatesShuffleIndices(N);
@@ -254,12 +255,12 @@ class Engine {
   step() {
     this.decideMoves(this.good);
     this.decideMoves(this.mixed);
-    this.neighborImpacts(this.good);
-    this.neighborImpacts(this.mixed);
+    const deltaGood = this.neighborImpacts(this.good);
+    const deltaMixed = this.neighborImpacts(this.mixed);
     this.powerfulSelfDrift(this.good);
     this.powerfulSelfDrift(this.mixed);
-    this.updateHistoryAndQueue(this.good);
-    this.updateHistoryAndQueue(this.mixed);
+    this.updateHistoryAndQueue(this.good, deltaGood);
+    this.updateHistoryAndQueue(this.mixed, deltaMixed);
     this.processMigrations();
     if (this.shufflePositions) {
       this.shuffleWorld(this.good);
@@ -419,7 +420,7 @@ export default function Simulation() {
         if (Math.random() < pGood) M.T[i] = Math.random() * 10;
         else M.T[i] = -Math.random() * 10;
         M.Move[i] = +1;
-        M.StreakBad[i] = 0;
+        M.StreakNegDelta[i] = 0;
       }
     const gctx = canvasGoodRef.current?.getContext("2d");
     const mctx = canvasMixedRef.current?.getContext("2d");
