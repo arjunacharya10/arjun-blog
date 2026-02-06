@@ -115,8 +115,9 @@ export default function Post() {
               <p>
                 In our simulation, every person has a{" "}
                 <strong>trust score</strong>. Good actions raise it, bad actions
-                lower it. Trust can never go higher than +10, but it can fall as
-                far as it wants into the negatives.
+                lower it. Trust is unbounded—it can grow infinitely positive
+                or fall infinitely negative, creating a continuous spectrum of
+                behavior.
               </p>
 
               <h3>Who’s in the world?</h3>
@@ -173,10 +174,12 @@ export default function Post() {
 
               <h3>Migration</h3>
               <p>
-                If someone in the Mixed World behaves badly four times in a row,
-                they “migrate” to the Good World – but not as a good person.
-                They replace a random good person there, bringing distrust into
-                the good side and leaving their old spot empty.
+                If someone in the Mixed World experiences negative impacts from
+                their neighbors for four consecutive ticks (meaning their
+                environment is consistently harmful), they "migrate" to the Good
+                World – but not as a good person. They replace a random good
+                person there, bringing their distrust into the good side and
+                leaving their old spot empty.
               </p>
 
               <h3>Why it matters</h3>
@@ -203,13 +206,14 @@ export default function Post() {
             <h2>Trust & moves</h2>
             <ul>
               <li>
-                <b>Trust score:</b> (−∞, +10]. We cap the top; there’s no floor
-                on negative.
+                <b>Trust score:</b> (−∞, +∞). Unbounded in both directions—trust
+                can grow infinitely or collapse completely.
               </li>
               <li>
-                <b>Move rule:</b> if <code>T &lt; 0</code> → always evil. If{" "}
-                <code>T ≥ 0</code> → good with probability <code>T/10</code>,
-                else evil.
+                <b>Move rule:</b> Uses a logistic function:{" "}
+                <code>P(good) = 1 / (1 + e^(-α·T))</code>, where α = 0.25.
+                This creates a smooth S-curve: very negative trust → ~0% good
+                actions, T=0 → 50% good, very positive trust → ~100% good.
               </li>
               <li>
                 <b>Neighborhood:</b> 8 neighbors (Moore). Your update is the
@@ -321,8 +325,10 @@ export default function Post() {
                 appear.
               </li>
               <li>
-                <b>Migration (one‑way):</b> in Mixed, 4 evil moves in a row
-                overwrites a random Good cell; the Mixed slot becomes a void.
+                <b>Migration (one‑way):</b> in Mixed, if an actor experiences
+                negative net impact from neighbors (delta &lt; 0) for 4
+                consecutive ticks, they migrate to overwrite a random Good cell;
+                the Mixed slot becomes a void.
               </li>
               <li>
                 <b>Randomization:</b> optional shuffle of positions each tick.

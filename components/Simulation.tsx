@@ -85,7 +85,7 @@ const buildNeighbors = (): Uint32Array[] => {
 // ====== Engine ======
 class World {
   kind: "Good" | "Mixed";
-  T = new Float32Array(N); // trust (-inf, 10]
+  T = new Float32Array(N); // trust (-inf, +inf)
   Cls = new Uint8Array(N); // class
   Occ = new Uint8Array(N); // occupied (1) or empty (0)
   Move = new Int8Array(N); // last move (+1/-1)
@@ -103,6 +103,7 @@ class Engine {
   migrated = 0;
   migQueue: number[] = [];
   shufflePositions = true;
+  actionSensitivity = 0.25; // α in the logistic function
 
   constructor() {
     this.init();
@@ -130,14 +131,15 @@ class Engine {
     this.migQueue.length = 0;
   }
 
-  decideMoves(w: World) {
-    const { T, Move, Occ } = w;
-    for (let i = 0; i < N; i++)
-      if (Occ[i]) {
-        const t = T[i];
-        Move[i] = t < 0 ? -1 : Math.random() < t / 10 ? +1 : -1;
-      }
+decideMoves(w: World) {
+  const { T, Move, Occ } = w;
+  for (let i = 0; i < N; i++) {
+    if (!Occ[i]) continue;
+
+    const pGood = 1 / (1 + Math.exp(-this.actionSensitivity * T[i]));
+    Move[i] = Math.random() < pGood ? +1 : -1;
   }
+}
 
   neighborImpacts(w: World): Float32Array {
     const { T, Cls, Move, Occ } = w;
@@ -160,7 +162,7 @@ class Engine {
       }
     for (let i = 0; i < N; i++)
       if (Occ[i]) {
-        T[i] = Math.min(10, T[i] + delta[i]);
+        T[i] += delta[i];
       }
     return delta;
   }
@@ -170,7 +172,7 @@ class Engine {
     for (let i = 0; i < N; i++)
       if (Occ[i] && Cls[i] === 0) {
         // Powerful
-        T[i] = Math.min(10, T[i] + (Move[i] > 0 ? +0.1 : -0.1));
+        T[i] += Move[i] > 0 ? +0.1 : -0.1;
       }
   }
 
@@ -280,6 +282,7 @@ export default function Simulation() {
   const [tps, setTps] = useState(12);
   const [mixGoodPct, setMixGoodPct] = useState(50);
   const [shuffle, setShuffle] = useState(true);
+  const [alpha, setAlpha] = useState(0.25);
 
   const [stats, setStats] = useState({
     tick: 0,
@@ -410,6 +413,11 @@ export default function Simulation() {
   useEffect(() => {
     engine.shufflePositions = shuffle;
   }, [shuffle, engine]);
+
+  // Sync alpha value
+  useEffect(() => {
+    engine.actionSensitivity = alpha;
+  }, [alpha, engine]);
 
   // Randomize Mixed with given good %
   const randomizeMixed = () => {
@@ -542,6 +550,21 @@ export default function Simulation() {
               onChange={(e) => setTps(+e.target.value)}
             />
             <span className="label w-12 text-right">{tps} tps</span>
+            <div className="h-6 w-px bg-border" />
+            <label className="label">Action Sensitivity (α)</label>
+            <input
+              className="slider"
+              type="range"
+              min={0.05}
+              max={1}
+              step={0.05}
+              value={alpha}
+              onChange={(e) => setAlpha(+e.target.value)}
+            />
+            <span className="label w-12 text-right">{alpha.toFixed(2)}</span>
+          </div>
+          <div className="text-xs text-muted text-center max-w-2xl">
+            <strong>α (alpha)</strong> controls how trust affects behavior. Lower α = gradual change (trust must build high for consistent good actions). Higher α = sharp transitions (small trust changes flip behavior quickly).
           </div>
           <div>
             <label className="inline-flex items-center gap-2 text-sm">
